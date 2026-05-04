@@ -1,22 +1,32 @@
 import yt_dlp
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-def download_720p_video(url):
-    # إعدادات مخصصة لدقة 720 بكسل
-    ydl_opts = {
-        # يختار الفيديو الذي طوله 720p أو أقل، مع دمج الصوت تلقائياً
-        'format': 'best[height<=720]/best',
-        'outtmpl': '%(title)s_720p.%(ext)s', # سيتم حفظ الفيديو باسمه متبوعاً بـ 720p
-        'quiet': False, # لإظهار تفاصيل التحميل والنسبة المئوية
-    }
+TOKEN = "8793504257:AAGZ4rBZzvomOKD9uR09VawooozsuSjm3q4"
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("مرحبا! أرسل لي رابط فيديو وسأحمله لك 🎬")
+
+async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text
+    await update.message.reply_text("جاري التحميل... ⏳")
+    
     try:
+        ydl_opts = {
+            'format': 'best[filesize<50M]',
+            'outtmpl': '/tmp/%(title)s.%(ext)s',
+        }
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            print(f"جاري بدء التحميل من الرابط: {url}")
-            ydl.download([url])
-            print("\nتمت العملية بنجاح!")
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+        
+        await update.message.reply_video(video=open(filename, 'rb'))
+        
     except Exception as e:
-        print(f"للأسف حدث خطأ: {e}")
+        await update.message.reply_text(f"حدث خطأ: {e}")
 
-if __name__ == "__main__":
-    link = input("أدخل رابط الفيديو (من أي موقع): ")
-    download_720p_video(link)
+app = ApplicationBuilder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download))
+app.run_polling()
