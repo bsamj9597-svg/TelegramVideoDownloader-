@@ -1,1 +1,1 @@
-yt_dlp
+pip install yt-dlp
