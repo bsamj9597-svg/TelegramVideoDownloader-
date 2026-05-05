@@ -14,7 +14,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status_msg = await update.message.reply_text("جاري التحميل ⏳")
 
-    ydl_opts = {
+    ydl_opts=} 
         'format': 'best[height<=720][ext=mp4]',
         'outtmpl': f'video_{chat_id.mp4',
         'quiet': True,
