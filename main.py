@@ -16,7 +16,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     ydl_opts = {
         'format': 'best[height<=720][ext=mp4]',
-        'outtmpl': f'video_{chat_id}.mp4',
+        'outtmpl': f'video_{chat_id.mp4',
         'quiet': True,
     }
 
