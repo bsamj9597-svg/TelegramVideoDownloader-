@@ -1,56 +1,50 @@
+# -*- coding: utf-8 -*-
 import os
 import asyncio
+import yt_dlp
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import yt_dlp
 
-# ضع التوكن الخاص بك هنا
+# التوكن الخاص بك
 TOKEN = '8701970648:AAHWP7Jbj_JawtRZwmQD9bjeAGCYbrMUhbo'
 
-# دالة التحميل باستخدام yt-dlp
 def download_video(url):
     ydl_opts = {
         'format': 'best',
-        'outtmpl': 'video.mp4',  # اسم الملف المؤقت
+        'outtmpl': 'video_file.%(ext)s',
         'quiet': True,
+        'no_warnings': True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-    return 'video.mp4'
+        info = ydl.extract_info(url, download=True)
+        return ydl.prepare_filename(info)
 
-# رسالة الترحيب /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو من (يوتيوب، فيسبوك، تيك توك) وسأقوم بتحميله لك.")
+    await update.message.reply_text("✅ البوت يعمل بنجاح! أرسل رابط الفيديو الآن.")
 
-# معالجة الروابط وتحميلها
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if not url.startswith("http"):
-        await update.message.reply_text("من فضلك أرسل رابطاً صحيحاً.")
         return
 
-    msg = await update.message.reply_text("جاري المعالجة والتحميل... انتظر قليلاً ⏳")
-
+    status = await update.message.reply_text("⏳ جاري التحميل...")
+    
     try:
-        # تنفيذ التحميل في "thread" منفصل عشان ميعطلش البوت
+        # تنفيذ التحميل في مسار منفصل لمنع تجميد البوت
         file_path = await asyncio.to_thread(download_video, url)
         
-        # إرسال الفيديو للمستخدم
-        await update.message.reply_video(video=open(file_path, 'rb'), caption="تم التحميل بنجاح ✅")
+        # إرسال الملف للمستخدم
+        await update.message.reply_video(video=open(file_path, 'rb'))
         
-        # حذف الملف بعد الإرسال لتوفير المساحة
+        # حذف الملف من السيرفر فوراً
         os.remove(file_path)
-        await msg.delete()
-
+        await status.delete()
     except Exception as e:
-        await update.message.reply_text(f"حدث خطأ أثناء التحميل: {str(e)}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
 
-# تشغيل البوت
 if __name__ == '__main__':
-    print("البوت يعمل الآن...")
-    application = Application.builder().token(TOKEN).build()
-    
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    application.run_polling()
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("البرنامج بدأ... اضغط Ctrl+C للإيقاف")
+    app.run_polling()
