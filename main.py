@@ -1,50 +1,52 @@
+
 import os
 import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-import yt_dlp
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from pytube import YouTube
 
-# توكن البوت الخاص بك
-TOKEN = '8793504257:AAGZ4rBZzvomOKD9uR09VawooozsuSjm3q4'
+# التوكن الخاص بك تم وضعه هنا
+TOKEN = "8793504257:AAGZ4rBZzvomOKD9uR09VawooozsuSjm3q4"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو من يوتيوب أو إنستغرام وسأقوم بتحميله لك.")
+    await update.message.reply_text("أهلاً بك! أنا بوت تحميل فيديوهات يوتيوب الجديد. أرسل لي الرابط وسأبدأ فوراً.")
 
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
-    status_message = await update.message.reply_text("جاري معالجة الرابط وتحميل الفيديو... انتظر قليلاً ⏳")
-
-    # إعدادات yt-dlp
-    ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', # اختيار أفضل جودة mp4
-        'outtmpl': 'downloads/%(title)s.%(ext)s', # مسار الحفظ
-        'quiet': True,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            file_path = ydl.prepare_filename(info)
+    if "youtube.com" in url or "youtu.be" in url:
+        status_msg = await update.message.reply_text("⏳ جاري سحب الفيديو... انتظر لحظة.")
+        try:
+            # استخدام pytube لجلب الفيديو
+            yt = YouTube(url)
+            # اختيار جودة متوسطة (360p أو 720p) لضمان سرعة الرفع وعدم فشل السيرفر
+            stream = yt.streams.filter(progressive=True, file_extension='mp4').first()
             
-            # إرسال الفيديو للمستخدم
-            await update.message.reply_video(video=open(file_path, 'rb'), caption=info.get('title', 'تم التحميل بواسطة البوت'))
+            # التحميل
+            file_path = stream.download()
             
-            # حذف الملف بعد الإرسال لتوفير المساحة
+            # إرسال الفيديو
+            await update.message.reply_video(video=open(file_path, 'rb'), caption=f"✅ تم التحميل:\n{yt.title}")
+            
+            # تنظيف المكان (حذف الملف من السيرفر)
             os.remove(file_path)
-            await status_message.delete()
+            await status_msg.delete()
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ حدثت مشكلة: {str(e)}")
+    else:
+        await update.message.reply_text("⚠️ من فضلك أرسل رابط يوتيوب صحيح.")
 
-    except Exception as e:
-        await status_message.edit_text(f"عذراً، حدث خطأ أثناء التحميل: {str(e)}")
+def main():
+    # بناء التطبيق
+    application = Application.builder().token(TOKEN).build()
+    
+    # إضافة الأوامر
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    
+    # تشغيل البوت
+    print("البوت شغال حالياً...")
+    application.run_polling()
 
 if __name__ == '__main__':
-    # إنشاء مجلد للتحميلات إذا لم يكن موجوداً
-    if not os.path.exists('downloads'):
-        os.makedirs('downloads')
-
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_video))
-
-    print("البوت يعمل الآن...")
-    app.run_polling()
+    main()
