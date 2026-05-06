@@ -1,2 +1,2 @@
 python-telegram-bot
-​yt-dlp
+yt-dlp
